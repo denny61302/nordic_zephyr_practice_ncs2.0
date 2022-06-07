@@ -13,6 +13,9 @@
 #error "No adi,adxl345 compatible node found in the device tree"
 #endif
 
+#include <usb/usb_device.h>
+#include <drivers/uart.h>
+
 struct adxl345_data
 {
     /* data */
@@ -172,6 +175,20 @@ void main(void)
 
 	struct sensor_value accel[3], voltage;
 	struct adxl345_data adxl345_data;
+
+	const struct device *dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
+	uint32_t dtr = 0;
+
+
+	if (usb_enable(NULL)) {
+		return;
+	}
+
+	/* Poll if the DTR flag was set */
+	do {
+		uart_line_ctrl_get(dev, UART_LINE_CTRL_DTR, &dtr);
+		/* Give CPU resources to low priority threads. */		
+	} while (!dtr);
 
 	printk("Hello World! %s\n", CONFIG_BOARD);
 
