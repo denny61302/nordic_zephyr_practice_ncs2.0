@@ -177,7 +177,12 @@ void main(void)
 	struct adxl345_data adxl345_data;
 
 	const struct device *dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
-	uint32_t dtr = 0;
+	uint32_t baudrate, dtr = 0;
+
+	if (!device_is_ready(dev)) {
+		printk("CDC ACM device not ready");
+		return;
+	}
 
 
 	if (usb_enable(NULL)) {
@@ -189,6 +194,16 @@ void main(void)
 		uart_line_ctrl_get(dev, UART_LINE_CTRL_DTR, &dtr);
 		/* Give CPU resources to low priority threads. */		
 	} while (!dtr);
+
+	/* Wait 1 sec for the host to do all settings */
+	k_busy_wait(1000000);
+
+	err = uart_line_ctrl_get(dev, UART_LINE_CTRL_BAUD_RATE, &baudrate);
+	if (err) {
+		printk("Failed to get baudrate, ret code %d", err);
+	} else {
+		printk("Baudrate detected: %d\n", baudrate);
+	}
 
 	printk("Hello World! %s\n", CONFIG_BOARD);
 
