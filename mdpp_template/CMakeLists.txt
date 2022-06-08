@@ -13,3 +13,9 @@ target_sources(app PRIVATE
 )
 
 zephyr_library_include_directories(src/remote_service)
+
+target_sources(app PRIVATE
+    src/adxl345_i2c/adxl345.c
+)
+
+zephyr_library_include_directories(src/adxl345_i2c)

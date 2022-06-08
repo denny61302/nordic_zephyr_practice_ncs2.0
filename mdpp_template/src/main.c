@@ -8,21 +8,25 @@
 
 #include <devicetree.h>
 #include <dk_buttons_and_leds.h>
-#include <drivers/sensor.h>
-#if !DT_HAS_COMPAT_STATUS_OKAY(adi_adxl345)
-#error "No adi,adxl345 compatible node found in the device tree"
-#endif
+
+// #include <drivers/sensor.h>
+// #if !DT_HAS_COMPAT_STATUS_OKAY(adi_adxl345)
+// #error "No adi,adxl345 compatible node found in the device tree"
+// #endif
+
+// struct adxl345_data
+// {
+//     /* data */
+//     int16_t x;
+//     int16_t y;
+//     int16_t z;
+// };
+
+#include "adxl345.h"
 
 #include <usb/usb_device.h>
 #include <drivers/uart.h>
 
-struct adxl345_data
-{
-    /* data */
-    int16_t x;
-    int16_t y;
-    int16_t z;
-};
 
 #include "remote.h"
 
@@ -173,7 +177,7 @@ void main(void)
     lv_obj_t *battery_status_label;
 
 
-	struct sensor_value accel[3], voltage;
+	// struct sensor_value accel[3], voltage;
 	struct adxl345_data adxl345_data;
 
 	const struct device *dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
@@ -215,12 +219,23 @@ void main(void)
 		return;
     }
 
-	const struct device *sensor = DEVICE_DT_GET(DT_INST(0, adi_adxl345));
+	// const struct device *sensor = DEVICE_DT_GET(DT_INST(0, adi_adxl345));
 
-	if (sensor == NULL || !device_is_ready(sensor)) {
-		printk("Could not get %s device\n", DT_LABEL(DT_INST(0, adi_adxl345)));
-		// return;
+	// if (sensor == NULL || !device_is_ready(sensor)) {
+	// 	printk("Could not get %s device\n", DT_LABEL(DT_INST(0, adi_adxl345)));
+	// 	// return;
+	// }
+
+	const struct device *dev_i2c = device_get_binding(I2C0);
+	if (dev_i2c == NULL) {
+		printk("Could not find  %s!\n\r",I2C0);
+		return;
 	}
+
+	err = adxl345_init(dev_i2c);
+	if(err != 0){
+        printk("Failed to init ADXL345");
+    }
 
     display_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_display));
 	if (!device_is_ready(display_dev)) {
@@ -254,15 +269,20 @@ void main(void)
 			counter = 0;
 			dk_set_led(RUN_STATUS_LED, (blink_status++)%2);		
 
-			if (sensor_sample_fetch(sensor) < 0) {
-				printk("sensor_sample_fetch failed\n");
-			}		
+			// if (sensor_sample_fetch(sensor) < 0) {
+			// 	printk("sensor_sample_fetch failed\n");
+			// }		
 
-			sensor_channel_get(sensor, SENSOR_CHAN_ACCEL_XYZ, accel);
+			// sensor_channel_get(sensor, SENSOR_CHAN_ACCEL_XYZ, accel);
 
-			adxl345_data.x = (int16_t) sensor_value_to_double(&accel[0]);
-			adxl345_data.y = (int16_t) sensor_value_to_double(&accel[1]);
-			adxl345_data.z = (int16_t) sensor_value_to_double(&accel[2]);
+			// adxl345_data.x = (int16_t) sensor_value_to_double(&accel[0]);
+			// adxl345_data.y = (int16_t) sensor_value_to_double(&accel[1]);
+			// adxl345_data.z = (int16_t) sensor_value_to_double(&accel[2]);
+
+			err = readXYZ(dev_i2c, &adxl345_data);
+			if(err != 0){
+				printk("Failed to read adxl345 data");
+			}			
 
 			if(isConnected){
                 sprintf(ble_status_str, "BLE: Connected");
