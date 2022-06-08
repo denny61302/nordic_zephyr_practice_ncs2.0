@@ -80,8 +80,8 @@ struct adxl345_data
 
 enum {Aup = 1, Bup, Cup, Dup, Topup, Botup};
 
-int adxl345_init(const struct device *dev_i2c);
-int readXYZ(const struct device *dev_i2c, struct adxl345_data *adxl345_data);
+int adxl345_init();
+int readXYZ(struct adxl345_data *adxl345_data);
 void adxl345_main_loop();
 
 #endif

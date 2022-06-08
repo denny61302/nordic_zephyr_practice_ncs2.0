@@ -3,9 +3,17 @@
 // #define LOG_MODULE_NAME adxl345
 // LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 
-int adxl345_init(const struct device *dev_i2c)
+const struct device *dev_i2c;
+
+int adxl345_init()
 {
     int ret;
+
+    dev_i2c = device_get_binding(I2C0);
+	if (dev_i2c == NULL) {
+		printk("Could not find  %s!\n\r",I2C0);
+		return;
+	}
     
     uint8_t config[2] = {POWER_CTL,0x08};
     ret = i2c_write(dev_i2c, config, sizeof(config), ADXL345_ADDR);
@@ -23,7 +31,7 @@ int adxl345_init(const struct device *dev_i2c)
     return ret;
 }
 
-int readXYZ(const struct device *dev_i2c, struct adxl345_data *adxl345_data)
+int readXYZ(struct adxl345_data *adxl345_data)
 {
     int ret;
     

@@ -226,13 +226,7 @@ void main(void)
 	// 	// return;
 	// }
 
-	const struct device *dev_i2c = device_get_binding(I2C0);
-	if (dev_i2c == NULL) {
-		printk("Could not find  %s!\n\r",I2C0);
-		return;
-	}
-
-	err = adxl345_init(dev_i2c);
+	err = adxl345_init();
 	if(err != 0){
         printk("Failed to init ADXL345");
     }
@@ -279,7 +273,7 @@ void main(void)
 			// adxl345_data.y = (int16_t) sensor_value_to_double(&accel[1]);
 			// adxl345_data.z = (int16_t) sensor_value_to_double(&accel[2]);
 
-			err = readXYZ(dev_i2c, &adxl345_data);
+			err = readXYZ(&adxl345_data);
 			if(err != 0){
 				printk("Failed to read adxl345 data");
 			}			
