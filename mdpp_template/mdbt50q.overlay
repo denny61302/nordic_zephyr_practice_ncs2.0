@@ -39,6 +39,7 @@
 };
 
 &i2c0 {
+	clock-frequency = <I2C_BITRATE_FAST>;
     adxl345@53 {
 		compatible = "adi,adxl345";
 		label = "ADXL345";

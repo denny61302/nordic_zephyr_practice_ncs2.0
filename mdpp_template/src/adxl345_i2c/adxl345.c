@@ -12,17 +12,41 @@ int adxl345_init()
     dev_i2c = device_get_binding(I2C0);
 	if (dev_i2c == NULL) {
 		printk("Could not find  %s!\n\r",I2C0);
-		return;
+		return -1;
 	}
     
-    uint8_t config[2] = {POWER_CTL,0x08};
+    uint8_t config[2] = {0};    
+
+    config[0] = DATA_FORMAT;
+    config[1] = 0x00;
     ret = i2c_write(dev_i2c, config, sizeof(config), ADXL345_ADDR);
     if(ret != 0){
         printk("Failed to write to I2C device address %x at Reg. %x \n", ADXL345_ADDR,config[0]);
     }
 
-    config[0] = DATA_FORMAT;
-    config[1] = 0x00;
+    config[0] = BW_RATE;
+    config[1] = 0x07;
+    ret = i2c_write(dev_i2c, config, sizeof(config), ADXL345_ADDR);
+    if(ret != 0){
+        printk("Failed to write to I2C device address %x at Reg. %x \n", ADXL345_ADDR,config[0]);
+    }
+
+    config[0] = INT_ENABLE;
+    config[1] = 0x80;
+    ret = i2c_write(dev_i2c, config, sizeof(config), ADXL345_ADDR);
+    if(ret != 0){
+        printk("Failed to write to I2C device address %x at Reg. %x \n", ADXL345_ADDR,config[0]);
+    }
+
+    config[0] = INT_MAP;
+    config[1] = 0x80;
+    ret = i2c_write(dev_i2c, config, sizeof(config), ADXL345_ADDR);
+    if(ret != 0){
+        printk("Failed to write to I2C device address %x at Reg. %x \n", ADXL345_ADDR,config[0]);
+    }
+
+    config[0] = POWER_CTL;
+    config[1] = 0x08;
     ret = i2c_write(dev_i2c, config, sizeof(config), ADXL345_ADDR);
     if(ret != 0){
         printk("Failed to write to I2C device address %x at Reg. %x \n", ADXL345_ADDR,config[0]);
