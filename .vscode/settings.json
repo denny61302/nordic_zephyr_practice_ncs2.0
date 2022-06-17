@@ -1,0 +1,16 @@
+{
+    "nrf-connect.applications": [
+        "${workspaceFolder}\\vl6180x"
+    ],
+    "files.associations": {
+        "unistd.h": "c",
+        "pthread.h": "c",
+        "vl6180x.h": "c",
+        "vl6180x_platform.h": "c",
+        "vl6180x_api.h": "c",
+        "vl6180x_def.h": "c",
+        "vl6180x_types.h": "c",
+        "vl6180x_cfg.h": "c",
+        "vl6180x_i2c.h": "c"
+    }
+}
