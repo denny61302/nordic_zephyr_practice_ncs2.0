@@ -114,12 +114,11 @@ uint8_t Sample_OffsetCalibrate(void);
  * @param myDev  The device
  * @return     0 on success may @a #CALIBRATION_WARNING <0 on errir
  */
-int Sample_InitForOffsetCalib(VL6180xDev_t myDev){
+int Sample_Init(VL6180xDev_t myDev){
     int status, init_status;
     MyDev_Init(myDev);           // your code
     // MyDev_SetChipEnable(myDev);  // your code
-    k_sleep(K_MSEC(10));
-    // MyDev_uSleep(2000);          // your code sleep at least 1msec prior to do i2c to device
+    k_sleep(K_MSEC(10));     // your code sleep at least 1msec prior to do i2c to device
     init_status = VL6180x_InitData(myDev);
     if(init_status == 0 || init_status == CALIBRATION_WARNING ){
         status = VL6180x_Prepare(myDev);
@@ -127,7 +126,7 @@ int Sample_InitForOffsetCalib(VL6180xDev_t myDev){
             status=init_status; // if prepare is successfull return potential init warning
     }
     return status; 
-    }
+}
 
 /**
  * Implement Offset calibration as described in VL6180x Datasheet
@@ -191,9 +190,9 @@ int Sample_OffsetRunCalibration(VL6180xDev_t myDev)
     return offset;
 }
 
-
-uint8_t Sample_OffsetCalibrate(void) {
-    VL6180xDev_t myDev;
+void main(void)
+{
+	VL6180xDev_t myDev;
     VL6180x_RangeData_t Range;
 
     int offset;
@@ -202,7 +201,7 @@ uint8_t Sample_OffsetCalibrate(void) {
     /* init device */
     MyDev_Init(myDev);
     vl6180x_init(myDev);
-    status = Sample_InitForOffsetCalib(myDev);
+    status = Sample_Init(myDev);
     if( status <0 ){
         // HandleError("Sample_Init fail");
     }
@@ -225,32 +224,4 @@ uint8_t Sample_OffsetCalibrate(void) {
             printk("%d\r\n", Range.errorStatus); // your code display error code
         k_sleep(K_MSEC(1000));
     } 
-    return offset;
-}
-
-void Sample_SimpleRanging(void) {
-    VL6180xDev_t myDev;
-    VL6180x_RangeData_t Range;
-
-    MyDev_Init(myDev);           // your code init device variable
-    vl6180x_init(myDev);
-    // MyDev_SetChipEnable(myDev);  // your code assert chip enable
-    // MyDev_uSleep(1000);          // your code sleep at least 1 msec
-    k_sleep(K_MSEC(10));
-    VL6180x_InitData(myDev);
-    VL6180x_Prepare(myDev);
-    while(1)
-    {
-        VL6180x_RangePollMeasurement(myDev, &Range);
-        if (Range.errorStatus == 0 )
-            printk("%d\r\n",Range.range_mm); // your code display range in mm
-        else
-            printk("%d\r\n", Range.errorStatus); // your code display error code
-        k_sleep(K_MSEC(1000));
-    } // your code to stop looping
-}
-
-void main(void)
-{
-	Sample_OffsetCalibrate();
 }
