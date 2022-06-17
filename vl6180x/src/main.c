@@ -162,7 +162,9 @@ int Sample_OffsetRunCalibration(VL6180xDev_t myDev)
     }
 
     /* Ask user to place a white target at know RealTargetDistance */
-    printk("Calibrating : place white target at %dmm",RealTargetDistance);
+    printk("Calibrating : place white target at %dmm\r\n",RealTargetDistance);
+    k_sleep(K_MSEC(10000));
+    printk("Calibrating\r\n");
     
     /* Program a null offset */
     VL6180x_SetOffsetCalibrationData(myDev, 0);
@@ -190,11 +192,82 @@ int Sample_OffsetRunCalibration(VL6180xDev_t myDev)
     return offset;
 }
 
+/**
+ * Implement Xtalk calibration as described in VL6180x Datasheet (DocID026171 Rev 6)
+ *
+ * Device must be initialized
+ *
+ * @note device scaling wrap filter and xtalk setting are scraped !
+ *  It is safer to reset and re init device when done
+ * @warning  follow strictly procedure described in the device manual
+ * @param myDev  The device
+ * @return The cross talk (9.7 fix point as expected in register)
+ */
+int Sample_XTalkRunCalibration(VL6180xDev_t myDev)
+{
+    VL6180x_RangeData_t Range[N_MEASURE_AVG];
+    int32_t   RangeSum;
+    int32_t   RateSum;
+    int status;
+    int i;
+    int XTalkInt;
+    int RealTargetDistance;
+
+    /* Real target distance is 100 mm in proximity ranging configuration (scaling x1) or 400 mm in extended-range configuration */
+    RealTargetDistance = (VL6180x_UpscaleGetScaling(myDev)==1) ? 100 : 400;
+    
+    /* Turn off wrap-around filter (to avoid first invalid distances and decrease number of I2C accesses at maximum) */
+    VL6180x_FilterSetState(myDev, 0);
+    
+    /* Clear all interrupts */
+    status = VL6180x_ClearAllInterrupt(myDev);
+    if( status ){
+        printk("VL6180x_ClearAllInterrupt  fail");
+    }
+
+    /* Ask user to place a black target at know RealTargetDistance from glass */
+    printk("Calibrating : place black target at %dmm\r\n",RealTargetDistance);
+    k_sleep(K_MSEC(10000));
+    printk("Calibrating\r\n");
+
+    /* Program a null xTalk compensation value */
+    status=VL6180x_WrWord(myDev, SYSRANGE_CROSSTALK_COMPENSATION_RATE, 0);
+
+    /* Perform several ranging measurement */
+    for( i=0; i<N_MEASURE_AVG; i++){
+        status = VL6180x_RangePollMeasurement(myDev, &Range[i]);
+        if( status ){
+            printk("VL6180x_RangePollMeasurement  fail");
+        }
+        if( Range[i].errorStatus != 0 ){
+            printk("No target detect");
+        }
+    }
+    
+    /* Calculate ranging and signal rate average */
+    RangeSum=0;
+    RateSum=0;
+    for( i=0; i<N_MEASURE_AVG; i++){
+        RangeSum+= Range[i].range_mm;
+        RateSum+= Range[i].signalRate_mcps;
+    }
+    
+    /* Rate sum is 9.7 fixpoint so same for xtalk computed below
+     * The order of operation is important to have decent final precision without use of  floating point
+     * using a higher real distance and number of point may lead to 32 bit integer overflow in formula below */
+    XTalkInt = RateSum*(N_MEASURE_AVG*RealTargetDistance-RangeSum)/N_MEASURE_AVG /(RealTargetDistance*N_MEASURE_AVG);
+    XTalkInt = (XTalkInt>0) ? XTalkInt : 0; // Must be positive of null
+    printk("range %d rate %d comp %d\n", RangeSum/N_MEASURE_AVG, RateSum/N_MEASURE_AVG, XTalkInt);
+    
+    return XTalkInt;
+}
+
 void main(void)
 {
 	VL6180xDev_t myDev;
     VL6180x_RangeData_t Range;
 
+    int XTalkRate;
     int offset;
     int status;
 
@@ -213,6 +286,21 @@ void main(void)
     
     /* program offset */
     VL6180x_SetOffsetCalibrationData(myDev, offset);
+
+    /* Program offset calculated from offset calibration */
+    VL6180x_SetOffsetCalibrationData(myDev, offset);
+    
+    /* run calibration */
+    XTalkRate = Sample_XTalkRunCalibration(myDev);
+
+    /* when possible reset re-init device otherwise set back required filter */
+    VL6180x_FilterSetState(myDev, 1);  // turn on wrap around filter again
+    
+    /* apply cross talk */
+    status = VL6180x_SetXTalkCompensationRate(myDev, XTalkRate);
+    if( status<0 ){ /* ignore warning but not error */
+        printk("VL6180x_WrWord fail");
+    }
     
     /* Perform ranging measurement to check */
     while(1)
