@@ -10,6 +10,8 @@
 #include <sys/printk.h>
 #include <sys/__assert.h>
 #include <string.h>
+#include <stdlib.h>
+#include <drivers/uart.h>
 
 #define STACK_SIZE 1024
 #define PRIORITY 7
@@ -25,6 +27,12 @@
 #error "Unsupported board: led1 devicetree alias is not defined"
 #endif
 
+// Settings
+static const uint8_t buf_len = 20;
+
+// Globals
+static int led_delay = 500;   // ms
+
 K_THREAD_STACK_DEFINE(stack_area1, STACK_SIZE);
 K_THREAD_STACK_DEFINE(stack_area2, STACK_SIZE);
 
@@ -38,27 +46,62 @@ static const struct led led0 = {
 	.gpio_pin_name = DT_PROP_OR(LED0_NODE, label, ""),
 };
 
+static const struct device *uart_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
+
 void toggleLED_1()
 {	
 	while (1) {
 		gpio_pin_toggle(led0.spec.port, led0.spec.pin);
-		printk("rate1\r\n");
-		k_msleep(500);
+		// printk("rate1\r\n");
+		k_msleep(led_delay);
 	}
 }
 
-void toggleLED_2()
-{
-	while (1) {
-		gpio_pin_toggle(led0.spec.port, led0.spec.pin);
-		printk("rate2\r\n");
-		k_msleep(323);
+void readSerial() {
+
+  unsigned char recv_char;
+  char buf[buf_len];
+  uint8_t idx = 0;
+
+  // Clear whole buffer
+  memset(buf, 0, buf_len);
+
+  // Loop forever
+  while (1) {
+    // Read characters from serial
+    while (uart_poll_in(uart_dev, &recv_char) < 0) {
+			/* Allow other thread/workqueue to work. */
+			k_yield();
 	}
+
+	// Update delay variable and reset buffer if we get a newline character
+	if (recv_char == '\n') 
+	{
+		led_delay = atoi(buf);
+		printk("Updated LED delay to: %d\n", led_delay);
+		memset(buf, 0, buf_len);
+		idx = 0;
+	} 
+	else 
+	{        
+		// Only append if index is not over message limit
+		if (idx < buf_len - 1) 
+		{
+			buf[idx] = recv_char;
+			idx++;
+		}
+	}    
+  }
 }
 
 void main(void)
 {
 	int ret;
+
+	if (!device_is_ready(uart_dev)) {
+		printk("UART device not ready\n");
+		return;
+	}
 
 	if (!device_is_ready(led0.spec.port)) {
 		printk("Error: %s device is not ready\n", led0.spec.port->name);
@@ -70,7 +113,7 @@ void main(void)
 		printk("Error %d: failed to configure pin %d (LED '%s')\n",
 			ret, led0.spec.pin, led0.gpio_pin_name);
 		return;
-	}
+	}	
 
 	struct k_thread thread1, thread2;
 
@@ -82,7 +125,7 @@ void main(void)
 
 	k_thread_create(&thread2, stack_area2,
                                  K_THREAD_STACK_SIZEOF(stack_area2),
-                                 toggleLED_2,
+                                 readSerial,
                                  NULL, NULL, NULL,
                                  PRIORITY, 0, K_NO_WAIT);
 }
