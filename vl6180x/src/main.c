@@ -155,10 +155,16 @@ int Sample_OffsetRunCalibration(VL6180xDev_t myDev)
     /* Turn off wrap-around filter (to avoid first invalid distances and decrease number of I2C accesses at maximum) */
     VL6180x_FilterSetState(myDev, 0);
 
+    /* Turn off range ignore features */
+    status = VL6180x_RangeIgnoreSetEnable(myDev, 0);
+    if( status ){
+        printk("VL6180x_RangeIgnoreSetEnable  fail");
+    }
+
     /* Clear all interrupts */
     status = VL6180x_ClearAllInterrupt(myDev);
     if( status ){
-        // HandleError("VL6180x_ClearAllInterrupt  fail");
+        printk("VL6180x_ClearAllInterrupt  fail");
     }
 
     /* Ask user to place a white target at know RealTargetDistance */
@@ -173,10 +179,10 @@ int Sample_OffsetRunCalibration(VL6180xDev_t myDev)
     for( i=0; i<N_MEASURE_AVG; i++){
         status = VL6180x_RangePollMeasurement(myDev, &Range[i]);
         if( status ){
-            // HandleError("VL6180x_RangePollMeasurement  fail");
+            printk("VL6180x_RangePollMeasurement  fail");
         }
         if( Range[i].errorStatus != 0 ){
-            // HandleError("No target detect");
+            printk("No target detect");
         }
     }
     
@@ -218,6 +224,12 @@ int Sample_XTalkRunCalibration(VL6180xDev_t myDev)
     
     /* Turn off wrap-around filter (to avoid first invalid distances and decrease number of I2C accesses at maximum) */
     VL6180x_FilterSetState(myDev, 0);
+
+    /* Turn off range ignore features */
+    status = VL6180x_RangeIgnoreSetEnable(myDev, 0);
+    if( status ){
+        printk("VL6180x_RangeIgnoreSetEnable  fail");
+    }
     
     /* Clear all interrupts */
     status = VL6180x_ClearAllInterrupt(myDev);
@@ -295,6 +307,17 @@ void main(void)
 
     /* when possible reset re-init device otherwise set back required filter */
     VL6180x_FilterSetState(myDev, 1);  // turn on wrap around filter again
+
+    /* Turn on range ignore features */
+    status = VL6180x_RangeIgnoreSetEnable(myDev, 1);
+    if( status ){
+        printk("VL6180x_RangeIgnoreSetEnable  fail");
+    }
+    
+    status = VL6180x_RangeIgnoreConfigure(myDev, 255, 1.2 * XTalkRate);
+    if( status ){
+        printk("VL6180x_RangeIgnoreSetEnable  fail");
+    }    
     
     /* apply cross talk */
     status = VL6180x_SetXTalkCompensationRate(myDev, XTalkRate);
