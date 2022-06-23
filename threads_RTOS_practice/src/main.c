@@ -29,8 +29,6 @@ K_THREAD_STACK_DEFINE(stack_area2, STACK_SIZE);
 
 static const struct device *uart_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
 
-K_HEAP_DEFINE(heap_memory, 1024);
-
 // Task: print message whenever flag is set and free buffer
 void printMessage() {
   while (1) {
@@ -40,11 +38,11 @@ void printMessage() {
       printk("%s", msg_ptr);
 
       // Give amount of free heap memory (uncomment if you'd like to see it)
-    //  printk("Free heap (bytes): %d\r\n", );
+     printk("Free heap (bytes): %d\r\n", );
 //      printk(xPortGetFreeHeapSize());
 
       // Free buffer, set pointer to null, and clear flag
-      k_heap_free(&heap_memory, msg_ptr);
+      k_free(msg_ptr);
       msg_ptr = NULL;
       msg_flag = 0;
     }
@@ -92,7 +90,7 @@ void readSerial()
         // Try to allocate memory and copy over message. If message buffer is
         // still in use, ignore the entire message.
         if (msg_flag == 0) {
-          msg_ptr = (char *)k_heap_alloc(&heap_memory, idx * sizeof(char), K_NO_WAIT);
+          msg_ptr = (char *)k_malloc(idx * sizeof(char));
 
           // Copy message
           memcpy(msg_ptr, buf, idx);
