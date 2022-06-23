@@ -2,5 +2,5 @@
 // For more help, browse the DeviceTree documentation at https://docs.zephyrproject.org/latest/guides/dts/index.html
 
 &uart0 {
-	current-speed = <1200>;
+	current-speed = <115200>;
 };
