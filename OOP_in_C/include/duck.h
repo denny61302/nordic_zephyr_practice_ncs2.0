@@ -1,17 +1,17 @@
 #ifndef DUCK_H
 #define DUCK_H
 
-#define MAX_CHARS_NAME 10
-#define MAX_CHARS_NAME_WITH_NUL (MAX_CHARS_NAME+1)
+#define MAX_NUM_DUCK_OBJS 10
 
-typedef struct Duck_t
-{
-    char name[MAX_CHARS_NAME_WITH_NUL];
-} Duck_t;
+typedef struct Duck_t *Duck;
 
-Duck_t * duckCreate( void );
-void duckInit( Duck_t * thisDuck, char * name );
-void duckShow( Duck_t * thisDuck );
-void duckDestroy( Duck_t * thisDuck );
+Duck duckCreate_dynamic(void);
+Duck duckCreate_static(void);
+void duckInit(Duck thisDuck, char *name);
+void duckSetName(Duck thisDuck, char *name);
+char *duckGetName(Duck thisDuck);
+void duckShow(Duck thisDuck);
+void duckDestroy_dynamic(Duck thisDuck);
+void duckDestroy_static(Duck thisDuck);
 
 #endif // DUCK_H
