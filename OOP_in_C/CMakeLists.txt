@@ -6,6 +6,7 @@ find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(hello_world)
 
 target_sources(app PRIVATE src/main.c)
-target_sources(app PRIVATE src/duck.c)
+target_sources(app PRIVATE src/robotArm.c)
+target_sources(app PRIVATE src/servoController.c)
 
 zephyr_library_include_directories(include)

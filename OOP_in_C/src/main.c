@@ -1,30 +1,46 @@
 #include <zephyr.h>
 #include <stdio.h>
-#include "duck.h"
+#include "servoController.h"
+#include "robotArm.h"
 
-int main(void)
+int
+main( void )
 {
-    printf("|__Creating duck objects:\n");
+    printf("|__Creating servo controllers:\n");
 
-    Duck Huey = duckCreate_dynamic();
-    Duck Dewey = duckCreate_dynamic();
-    Duck Louie = duckCreate_static();
+    servoController wrist = servoControllerCreate_dynamic();
+    servoController elbow = servoControllerCreate_dynamic();
+    servoController shoulder = servoControllerCreate_static();
 
-    duckInit(Huey, "Huey");
-    duckInit(Dewey, "Dewey");
-    duckInit(Louie, "Louie");
+    servoControllerInit(wrist, "Wrist");
+    servoControllerInit(elbow, "Elbow");
+    servoControllerInit(shoulder, "Shoulder");
 
-    printf("|__Showing duck objects:\n");
+    printf("|__Creating robot arm controller:\n");
 
-    duckShow(Huey);
-    duckShow(Dewey);
-    duckShow(Louie);
+    robotArm arm = robotArmCreate_static();
+    robotArmInit( arm, shoulder, elbow, wrist );
 
-    printf("|__Destroying duck objects:\n");
+    printf("|__Moving within range of motion:\n");
+    
+    robotArm_moveElbowTo(arm, 90);
+    robotArm_moveWristTo(arm, 55);
+    robotArm_moveShoulderTo(arm, 179);
 
-    duckDestroy_dynamic(Huey);
-    duckDestroy_dynamic(Dewey);
-    duckDestroy_static(Louie);
+    printf("|__Moving outside range of motion:\n");
+    
+    robotArm_moveElbowTo(arm, 10);
+    robotArm_moveWristTo(arm, 140);
+
+    printf("|__Destroying servo controller objects:\n");
+
+    servoControllerDestroy_dynamic(wrist);
+    servoControllerDestroy_dynamic(elbow);
+    servoControllerDestroy_static(shoulder);
+
+    printf("|__Destroying robot arm object:\n");
+
+    robotArmDestroy_static(arm);
 
     return 0;
 }
