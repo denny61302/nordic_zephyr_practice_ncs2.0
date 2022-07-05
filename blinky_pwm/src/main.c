@@ -13,6 +13,7 @@
 #include <sys/printk.h>
 #include <device.h>
 #include <drivers/pwm.h>
+#include <drivers/gpio.h>
 
 static const struct pwm_dt_spec pwm_led0 = PWM_DT_SPEC_GET(DT_ALIAS(pwm_led0));
 static const struct pwm_dt_spec pwm_led1 = PWM_DT_SPEC_GET(DT_ALIAS(pwm_led1));
@@ -22,11 +23,31 @@ static const struct pwm_dt_spec pwm_led1 = PWM_DT_SPEC_GET(DT_ALIAS(pwm_led1));
 
 void main(void)
 {
+	const struct device *dev;
+	
 	uint32_t max_period;
 	uint32_t period;
 	uint8_t dir = 0U;
 	int ret;
 	float factor=0;
+
+	dev = device_get_binding("GPIO_0");
+	if (dev == NULL) {
+		return;
+	}
+
+	ret = gpio_pin_configure(dev, 26, GPIO_OUTPUT_ACTIVE | GPIO_ACTIVE_LOW);
+	if (ret < 0) {
+		return;
+	}
+
+	ret = gpio_pin_configure(dev, 27, GPIO_OUTPUT_ACTIVE | GPIO_ACTIVE_LOW);
+	if (ret < 0) {
+		return;
+	}
+
+	gpio_pin_set(dev,26,0);
+	gpio_pin_set(dev,27,1);
 
 	printk("PWM-based blinky\n");
 
@@ -97,9 +118,13 @@ void main(void)
 		if(factor == 10) 
 		{			
 			dir = 1;
+			gpio_pin_set(dev,26,1);
+			gpio_pin_set(dev,27,0);
 		} else if (factor == 0)
 		{
 			dir = 0;
+			gpio_pin_set(dev,26,0);
+			gpio_pin_set(dev,27,1);
 		}
 		if (dir == 0) {
 			factor = factor + 1;
