@@ -8,15 +8,17 @@
 /**
  * @file Sample app to demonstrate PWM.
  */
-
+#include <stdio.h>
 #include <zephyr.h>
 #include <sys/printk.h>
 #include <device.h>
 #include <drivers/pwm.h>
 #include <drivers/gpio.h>
+#include <drivers/sensor.h>
 
 static const struct pwm_dt_spec pwm_led0 = PWM_DT_SPEC_GET(DT_ALIAS(pwm_led0));
 static const struct pwm_dt_spec pwm_led1 = PWM_DT_SPEC_GET(DT_ALIAS(pwm_led1));
+
 
 #define MIN_PERIOD PWM_SEC(1U) / 512U
 #define MAX_PERIOD PWM_SEC(1U)
@@ -24,15 +26,24 @@ static const struct pwm_dt_spec pwm_led1 = PWM_DT_SPEC_GET(DT_ALIAS(pwm_led1));
 void main(void)
 {
 	const struct device *dev;
+	const struct device *qdec;
 	
 	uint32_t max_period;
 	uint32_t period;
 	uint8_t dir = 0U;
 	int ret;
 	float factor=0;
+	
+	
 
 	dev = device_get_binding("GPIO_0");
 	if (dev == NULL) {
+		return;
+	}
+
+	qdec = device_get_binding("QDEC");
+	if (qdec == NULL) {
+		printf("error: no QDEC device\n");
 		return;
 	}
 
@@ -132,6 +143,22 @@ void main(void)
 		else {
 			factor = factor - 1;
 		}
+
+		struct sensor_value value;
+
+		ret = sensor_sample_fetch(qdec);
+		if (ret) {
+			printf("sensor_sample_fetch failed returns: %d\n", ret);
+			break;
+		}
+
+		ret = sensor_channel_get(qdec, SENSOR_CHAN_ROTATION, &value);
+		if (ret) {
+			printf("sensor_channel_get failed returns: %d\n", ret);
+			break;
+		}
+
+		printf("Position is %d\n", value.val1);
 		
 		k_sleep(K_SECONDS(2U));
 	}

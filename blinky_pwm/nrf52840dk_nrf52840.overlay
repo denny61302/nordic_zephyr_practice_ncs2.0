@@ -39,3 +39,46 @@
 	pinctrl-1 = <&pwm1_sleep>;
 	pinctrl-names = "default", "sleep";
 };
+
+&pinctrl {
+
+    qdec_A_default: qdec_A_default {
+		group1 {
+			psels = <NRF_PSEL(QDEC_A, 0, 10)>;
+		};
+	};
+
+	qdec_A_sleep: qdec_A_sleep {
+		group1 {
+			psels = <NRF_PSEL(QDEC_A, 0, 10)>;
+		};
+	};
+
+	qdec_B_default: qdec_B_default {
+		group1 {
+			psels = <NRF_PSEL(QDEC_B, 0, 9)>;
+		};
+	};
+
+	qdec_B_sleep: qdec_B_sleep {
+		group1 {
+			psels = <NRF_PSEL(QDEC_B, 0, 9)>;
+		};
+	};
+
+};
+
+&qdec0 {
+	status = "okay";
+	// enable-pin = <8>;
+	// a-pin = <10>;
+	// b-pin = <9>;
+	pinctrl-0 = <&qdec_A_default>;
+	pinctrl-1 = <&qdec_A_sleep>;
+	// pinctrl-2 = <&qdec_B_default>;
+	// pinctrl-3 = <&qdec_B_sleep>;
+	pinctrl-names = "default", "sleep";
+	// led-pin = <15>;
+	led-pre = <100>;
+	steps = <24>;
+};
