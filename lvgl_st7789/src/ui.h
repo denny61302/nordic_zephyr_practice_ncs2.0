@@ -15,6 +15,7 @@ extern "C" {
 extern lv_obj_t * ui_Screen1;
 extern lv_obj_t * ui_Screen1_Arc1;
 extern lv_obj_t * ui_Screen1_Arc2;
+extern lv_obj_t * ui_Screen1_Bar1;
 
 
 

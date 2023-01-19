@@ -12,8 +12,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <zephyr/kernel.h>
-
-#include <zephyr/usb/usb_device.h>
+#include "buttons.h"
+// #include <zephyr/usb/usb_device.h>
 #include <zephyr/drivers/uart.h>
 
 #define LOG_LEVEL CONFIG_LOG_DEFAULT_LEVEL
@@ -24,60 +24,96 @@ LOG_MODULE_REGISTER(app);
 
 static uint32_t count;
 
-#ifdef CONFIG_GPIO
-static struct gpio_dt_spec button_gpio = GPIO_DT_SPEC_GET_OR(
-		DT_ALIAS(sw0), gpios, {0});
-static struct gpio_callback button_callback;
+static lv_group_t *input_group;
+static lv_indev_drv_t enc_drv;
+static lv_indev_t *enc_indev;
 
-static void button_isr_callback(const struct device *port,
-				struct gpio_callback *cb,
-				uint32_t pins)
+static bool buttons_allocated = false;
+static buttonId_t last_pressed;
+
+static void onButtonPressCb(buttonPressType_t type, buttonId_t id);
+
+static void enocoder_read(struct _lv_indev_drv_t *indev_drv, lv_indev_data_t *data)
 {
-	ARG_UNUSED(port);
-	ARG_UNUSED(cb);
-	ARG_UNUSED(pins);
-
-	count = 0;
+    if (!buttons_allocated) {
+        return;
+    }
+    if (button_read(BUTTON_1)) {
+        data->key = LV_KEY_RIGHT;
+        data->state = LV_INDEV_STATE_PR;
+        last_pressed = BUTTON_1;
+    } else if (button_read(BUTTON_2)) {
+        data->key = LV_KEY_ENTER;
+        data->state = LV_INDEV_STATE_PR;
+        last_pressed = BUTTON_2;
+    } else if (button_read(BUTTON_3)) {
+        data->key = LV_KEY_LEFT;
+        data->state = LV_INDEV_STATE_PR;
+        last_pressed = BUTTON_3;
+    } else {
+        if (last_pressed == 0xFF) {
+            return;
+        }
+        data->state = LV_INDEV_STATE_REL;
+        switch (last_pressed) {
+            case BUTTON_1:
+                data->key = LV_KEY_RIGHT;
+                break;
+            case BUTTON_2:
+                data->key = LV_KEY_ENTER;
+                break;
+            case BUTTON_3:
+                data->key = LV_KEY_LEFT;
+                break;
+        }
+        last_pressed = 0xFF;
+    }
 }
-#endif
 
+static void onButtonPressCb(buttonPressType_t type, buttonId_t id)
+{
+    LOG_DBG("Pressed %d, type: %d", id, type);
+
+    // // Always allow force restart
+    // if (type == BUTTONS_LONG_PRESS && id == BUTTON_3) {
+        
+    // }
+
+    // if (type == BUTTONS_LONG_PRESS && id == BUTTON_2) {
+    //     // TODO doesn't work, as this press is read later with lvgl and causes extra press in settings.
+    //     // To fix each application must have exit button, maybe we can register long press on the whole view to exit
+    //     // apps without input device
+    //     //application_manager_exit_app();
+    //     //return;
+    // }
+
+    // if (buttons_allocated) {
+    //     // Handled by LVGL
+    //     return;
+    // }
+
+    // if (type == BUTTONS_SHORT_PRESS) {
+    //     if (id == BUTTON_3) {
+    //         LOG_DBG("Close Watchface, open App Manager");
+    //     } else if (id == BUTTON_2) {
+    //         LOG_DBG("CloseWatchface, open Notifications page");
+    //     } else {
+    //         LOG_WRN("Unhandled button %d, type: %d, watch_state: %d", id, type, watch_state);
+    //     }
+    // } else {
+    //     if (id == BUTTON_3) {
+            
+    //     } else {
+    //         LOG_WRN("Unhandled button %d, type: %d, watch_state: %d", id, type, watch_state);
+    //     }
+    // }
+}
 
 void main(void)
 {
 	int err;
 	char count_str[11] = {0};
 	const struct device *display_dev;
-	lv_obj_t *hello_world_label;
-	lv_obj_t *count_label;
-	
-	const struct device *dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
-	uint32_t baudrate, dtr = 0;
-
-	if (!device_is_ready(dev)) {
-		printk("CDC ACM device not ready");
-		return;
-	}
-
-
-	if (usb_enable(NULL)) {
-		return;
-	}
-
-	/* Poll if the DTR flag was set */
-	do {
-		uart_line_ctrl_get(dev, UART_LINE_CTRL_DTR, &dtr);
-		/* Give CPU resources to low priority threads. */		
-	} while (!dtr);
-
-	/* Wait 1 sec for the host to do all settings */
-	k_busy_wait(1000000);
-
-	err = uart_line_ctrl_get(dev, UART_LINE_CTRL_BAUD_RATE, &baudrate);
-	if (err) {
-		printk("Failed to get baudrate, ret code %d", err);
-	} else {
-		printk("Baudrate detected: %d\n", baudrate);
-	}
 
 	printk("Hello World! %s\n", CONFIG_BOARD);
 
@@ -85,51 +121,18 @@ void main(void)
 	if (!device_is_ready(display_dev)) {
 		LOG_ERR("Device not ready, aborting test");
 		return;
-	}
+	}	
 
-#ifdef CONFIG_GPIO
-	if (device_is_ready(button_gpio.port)) {
-		err = gpio_pin_configure_dt(&button_gpio, GPIO_INPUT);
-		if (err) {
-			LOG_ERR("failed to configure button gpio: %d", err);
-			return;
-		}
+	buttonsInit(&onButtonPressCb);
 
-		gpio_init_callback(&button_callback, button_isr_callback,
-				   BIT(button_gpio.pin));
+	lv_indev_drv_init(&enc_drv);
+    enc_drv.type = LV_INDEV_TYPE_ENCODER;
+    enc_drv.read_cb = enocoder_read;
+    enc_indev = lv_indev_drv_register(&enc_drv);
 
-		err = gpio_add_callback(button_gpio.port, &button_callback);
-		if (err) {
-			LOG_ERR("failed to add button callback: %d", err);
-			return;
-		}
-
-		err = gpio_pin_interrupt_configure_dt(&button_gpio,
-						      GPIO_INT_EDGE_TO_ACTIVE);
-		if (err) {
-			LOG_ERR("failed to enable button callback: %d", err);
-			return;
-		}
-	}
-#endif
-
-	// if (IS_ENABLED(CONFIG_LV_Z_POINTER_KSCAN)) {
-	// 	lv_obj_t *hello_world_button;
-
-	// 	hello_world_button = lv_btn_create(lv_scr_act());
-	// 	lv_obj_align(hello_world_button, LV_ALIGN_CENTER, 0, 0);
-	// 	hello_world_label = lv_label_create(hello_world_button);
-	// } else {
-	// 	hello_world_label = lv_label_create(lv_scr_act());
-	// }
-
-	// lv_label_set_text(hello_world_label, "Hello world!");
-	// lv_obj_align(hello_world_label, LV_ALIGN_CENTER, 0, 0);
-
-	// count_label = lv_label_create(lv_scr_act());
-	// lv_obj_align(count_label, LV_ALIGN_BOTTOM_MID, 0, 0);
-
-	
+    input_group = lv_group_create();
+    lv_group_set_default(input_group);
+    lv_indev_set_group(enc_indev, input_group);
 
 	ui_init();
 	lv_task_handler();
@@ -140,6 +143,8 @@ void main(void)
 			// sprintf(count_str, "%d", count/100U);
 			// lv_label_set_text(count_label, count_str);
 			lv_arc_set_value(ui_Screen1_Arc1, count/100U);
+			lv_arc_set_value(ui_Screen1_Arc2, count/100U);
+			lv_bar_set_value(ui_Screen1_Bar1, count/100U, LV_ANIM_OFF);
 		}
 		lv_task_handler();
 		++count;

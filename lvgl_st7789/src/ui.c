@@ -10,6 +10,7 @@
 lv_obj_t * ui_Screen1;
 lv_obj_t * ui_Screen1_Arc1;
 lv_obj_t * ui_Screen1_Arc2;
+lv_obj_t * ui_Screen1_Bar1;
 
 ///////////////////// ANIMATIONS ////////////////////
 
@@ -32,6 +33,14 @@ void ui_Screen1_screen_init(void)
     lv_obj_set_height(ui_Screen1_Arc2, 100);
     lv_obj_set_align(ui_Screen1_Arc2, LV_ALIGN_CENTER);
     lv_arc_set_value(ui_Screen1_Arc2, 0);
+
+    ui_Screen1_Bar1 = lv_bar_create(ui_Screen1);
+    lv_bar_set_value(ui_Screen1_Bar1, 25, LV_ANIM_OFF);
+    lv_obj_set_width(ui_Screen1_Bar1, 150);
+    lv_obj_set_height(ui_Screen1_Bar1, 10);
+    lv_obj_set_x(ui_Screen1_Bar1, 3);
+    lv_obj_set_y(ui_Screen1_Bar1, 70);
+    lv_obj_set_align(ui_Screen1_Bar1, LV_ALIGN_CENTER);
 
 }
 
