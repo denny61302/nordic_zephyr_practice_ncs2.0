@@ -22,6 +22,8 @@ LOG_MODULE_REGISTER(app);
 
 #include "ui.h"
 
+#define RENDER_INTERVAL_LVGL    K_MSEC(100)
+
 static uint32_t count;
 
 static lv_group_t *input_group;
@@ -31,13 +33,16 @@ static lv_indev_t *enc_indev;
 static bool buttons_allocated = false;
 static buttonId_t last_pressed;
 
+static void lvgl_render(struct k_work *item);
+K_WORK_DELAYABLE_DEFINE(lvgl_work, lvgl_render);
+
+void run_init_work(struct k_work *item);
+K_WORK_DEFINE(init_work, run_init_work);
+
 static void onButtonPressCb(buttonPressType_t type, buttonId_t id);
 
 static void enocoder_read(struct _lv_indev_drv_t *indev_drv, lv_indev_data_t *data)
 {
-    if (!buttons_allocated) {
-        return;
-    }
     if (button_read(BUTTON_1)) {
         data->key = LV_KEY_RIGHT;
         data->state = LV_INDEV_STATE_PR;
@@ -72,7 +77,7 @@ static void enocoder_read(struct _lv_indev_drv_t *indev_drv, lv_indev_data_t *da
 
 static void onButtonPressCb(buttonPressType_t type, buttonId_t id)
 {
-    LOG_DBG("Pressed %d, type: %d", id, type);
+    LOG_INF("Pressed %d, type: %d", id, type);
 
     // // Always allow force restart
     // if (type == BUTTONS_LONG_PRESS && id == BUTTON_3) {
@@ -109,13 +114,19 @@ static void onButtonPressCb(buttonPressType_t type, buttonId_t id)
     // }
 }
 
-void main(void)
+static void lvgl_render(struct k_work *item)
 {
-	int err;
+    lv_task_handler();
+    k_work_schedule(&lvgl_work, RENDER_INTERVAL_LVGL);
+}
+
+void run_init_work(struct k_work *item)
+{
+    int err;
 	char count_str[11] = {0};
 	const struct device *display_dev;
 
-	printk("Hello World! %s\n", CONFIG_BOARD);
+	LOG_INF("Hello World! %s\n", CONFIG_BOARD);
 
 	display_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_display));
 	if (!device_is_ready(display_dev)) {
@@ -135,19 +146,13 @@ void main(void)
     lv_indev_set_group(enc_indev, input_group);
 
 	ui_init();
-	lv_task_handler();
+	// lv_task_handler();
 	display_blanking_off(display_dev);
 
-	while (1) {
-		if ((count % 100) == 0U) {
-			// sprintf(count_str, "%d", count/100U);
-			// lv_label_set_text(count_label, count_str);
-			lv_arc_set_value(ui_Screen1_Arc1, count/100U);
-			lv_arc_set_value(ui_Screen1_Arc2, count/100U);
-			lv_bar_set_value(ui_Screen1_Bar1, count/100U, LV_ANIM_OFF);
-		}
-		lv_task_handler();
-		++count;
-		k_sleep(K_MSEC(10));
-	}
+    k_work_schedule(&lvgl_work, K_MSEC(1));
+}
+
+void main(void)
+{
+	k_work_submit(&init_work);
 }
