@@ -1,3 +1,0 @@
-&i2c0 {
-	clock-frequency = <I2C_BITRATE_STANDARD>;
-};

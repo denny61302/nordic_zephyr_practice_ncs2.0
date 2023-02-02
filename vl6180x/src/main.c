@@ -103,7 +103,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vl6180x_platform.h" /* contain all device/platform specific code */
 
 #define I2C0_NODE DT_NODELABEL(i2c0)
-#define I2C0	DT_LABEL(I2C0_NODE)
+#define I2C0	DT_LABEL(DT_ALIAS(i2c_0))
 
 #define N_MEASURE_AVG   10
 

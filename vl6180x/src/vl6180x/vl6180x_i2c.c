@@ -67,16 +67,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 const struct device *dev;
 
-/* The devicetree node identifier for the "i2c0" */
-#define I2C0_NODE DT_NODELABEL(i2c0)
-#if DT_NODE_HAS_STATUS(I2C0_NODE, okay)
-#define I2C0	DT_LABEL(I2C0_NODE)
-#else
-/* A build error here means your board does not have I2C enabled. */
-#error "i2c0 devicetree node is disabled"
-#define I2C0	""
-#endif
-
 int VL6180x_WrByte(VL6180xDev_t dev, uint16_t index, uint8_t data){
     int  status;
     uint8_t *buffer;
@@ -272,9 +262,9 @@ int VL6180x_I2CRead(VL6180xDev_t addr, uint8_t  *buff, uint8_t len){
 
 int vl6180x_init(VL6180xDev_t addr)
 {
-    dev = device_get_binding(I2C0);
+    dev = DEVICE_DT_GET(DT_NODELABEL(i2c0));
 	if (dev == NULL) {
-		printk("Could not find  %s!\n\r",I2C0);
+		printk("Could not find !\n\r");
 		return -1;
 	}
 

@@ -38,8 +38,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // #include <pthread.h>
 // #include <posix/unistd.h>
 // #include <posix/pthread.h>
-#include <zephyr.h>
-#include <drivers/i2c.h>   
+#include <zephyr/kernel.h>
+#include <zephyr/drivers/i2c.h>   
 
 /**
  * @file vl6180x_platform.h
