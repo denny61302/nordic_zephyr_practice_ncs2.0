@@ -14,75 +14,23 @@
 
 LOG_MODULE_REGISTER(main);
 
-#if CONFIG_DISK_DRIVER_FLASH
-#include <zephyr/storage/flash_map.h>
-#endif
-
 #if CONFIG_FAT_FILESYSTEM_ELM
 #include <ff.h>
 #endif
 
-#if CONFIG_FILE_SYSTEM_LITTLEFS
-#include <zephyr/fs/littlefs.h>
-FS_LITTLEFS_DECLARE_DEFAULT_CONFIG(storage);
-#endif
-
-#define STORAGE_PARTITION		storage_partition
-#define STORAGE_PARTITION_ID		FIXED_PARTITION_ID(STORAGE_PARTITION)
-
 static struct fs_mount_t fs_mnt;
 static struct fs_file_t fs;
-
-static int setup_flash(struct fs_mount_t *mnt)
-{
-	int rc = 0;
-#if CONFIG_DISK_DRIVER_FLASH
-	unsigned int id;
-	const struct flash_area *pfa;
-
-	mnt->storage_dev = (void *)STORAGE_PARTITION_ID;
-	id = STORAGE_PARTITION_ID;
-
-	rc = flash_area_open(id, &pfa);
-	printk("Area %u at 0x%x on %s for %u bytes\n",
-	       id, (unsigned int)pfa->fa_off, pfa->fa_dev->name,
-	       (unsigned int)pfa->fa_size);
-
-	if (rc < 0 && IS_ENABLED(CONFIG_APP_WIPE_STORAGE)) {
-		printk("Erasing flash area ... ");
-		rc = flash_area_erase(pfa, 0, pfa->fa_size);
-		printk("%d\n", rc);
-	}
-
-	if (rc < 0) {
-		flash_area_close(pfa);
-	}
-#endif
-	return rc;
-}
 
 static int mount_app_fs(struct fs_mount_t *mnt)
 {
 	int rc;
 
-#if CONFIG_FAT_FILESYSTEM_ELM
 	static FATFS fat_fs;
 
 	mnt->type = FS_FATFS;
-	mnt->fs_data = &fat_fs;
-	if (IS_ENABLED(CONFIG_DISK_DRIVER_RAM)) {
-		mnt->mnt_point = "/RAM:";
-	} else if (IS_ENABLED(CONFIG_DISK_DRIVER_SDMMC)) {
-		mnt->mnt_point = "/SD:";
-	} else {
-		mnt->mnt_point = "/NAND:";
-	}
-
-#elif CONFIG_FILE_SYSTEM_LITTLEFS
-	mnt->type = FS_LITTLEFS;
-	mnt->mnt_point = "/lfs";
-	mnt->fs_data = &storage;
-#endif
+	mnt->fs_data = &fat_fs;	
+	mnt->mnt_point = "/SD:";
+	
 	rc = fs_mount(mnt);
 
 	return rc;
