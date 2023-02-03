@@ -18,9 +18,9 @@ local, and you've found our code helpful, please buy us a round!
 
 #ifndef __adxl345_h__
 #define __adxl345_h__
-#include <sys/util.h>
-#include <zephyr.h>
-#include <drivers/i2c.h>   
+#include <zephyr/sys/util.h>
+#include <zephyr/zephyr.h>
+#include <zephyr/drivers/i2c.h>   
 
 /* STEP 5 - Get the label of the I2C controller connected to your sensor */
 /* The devicetree node identifier for the "i2c0" */

@@ -1,16 +1,16 @@
-#include <zephyr.h>
+#include <zephyr/zephyr.h>
 
-#include <device.h>
+#include <zephyr/device.h>
 #include <stdio.h>
 #include <string.h>
 
-#include <devicetree.h>
+#include <zephyr/devicetree.h>
 
 #include "adxl345.h"
 
-#include <usb/usb_device.h>
-#include <drivers/uart.h>
-#include <drivers/gpio.h>
+#include <zephyr/usb/usb_device.h>
+#include <zephyr/drivers/uart.h>
+#include <zephyr/drivers/gpio.h>
 
 bool isDataReady = false;
 struct adxl345_data adxl345_data;
@@ -40,8 +40,7 @@ static struct gpio_callback cb_data;
 
 void main(void)
 {
-	int err;
-
+	int err;	
 	printk("Hello World! %s\n", CONFIG_BOARD);
 
 	const struct device *gpio;

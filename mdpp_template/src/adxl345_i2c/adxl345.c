@@ -9,9 +9,9 @@ int adxl345_init()
 {
     int ret;
 
-    dev_i2c = device_get_binding(I2C0);
+    dev_i2c = DEVICE_DT_GET(DT_NODELABEL(i2c0));
 	if (dev_i2c == NULL) {
-		printk("Could not find  %s!\n\r",I2C0);
+		printk("Could not find !\n\r");
 		return -1;
 	}
     
