@@ -9,6 +9,7 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/usb/usb_device.h>
 #include <zephyr/fs/fs.h>
+#include <zephyr/fs/fs_interface.h>
 #include <stdio.h>
 
 LOG_MODULE_REGISTER(main);
@@ -30,6 +31,7 @@ FS_LITTLEFS_DECLARE_DEFAULT_CONFIG(storage);
 #define STORAGE_PARTITION_ID		FIXED_PARTITION_ID(STORAGE_PARTITION)
 
 static struct fs_mount_t fs_mnt;
+static struct fs_file_t fs;
 
 static int setup_flash(struct fs_mount_t *mnt)
 {
@@ -92,6 +94,8 @@ static void setup_disk(void)
 	struct fs_dir_t dir;
 	struct fs_statvfs sbuf;
 	int rc;
+
+	fs_file_t_init(&fs);
 
 	fs_dir_t_init(&dir);
 
@@ -175,4 +179,10 @@ void main(void)
 	}
 
 	LOG_INF("The device is put in USB mass storage mode.\n");
+
+	char string[] = "Hello world\r\n";
+
+	fs_open(&fs, "/SD:/data.txt", FS_O_RDWR | FS_O_CREATE |FS_O_APPEND);
+	fs_write(&fs, string, sizeof(string));
+	fs_close(&fs);
 }
