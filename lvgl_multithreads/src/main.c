@@ -7,7 +7,6 @@
 #include <zephyr/device.h>
 #include <zephyr/devicetree.h>
 #include <zephyr/drivers/display.h>
-#include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/uart.h>
 #include <lvgl.h>
 #include <stdio.h>
@@ -15,141 +14,71 @@
 #include <string.h>
 #include <zephyr/kernel.h>
 
+#include "api.h"
+
 #define LOG_LEVEL CONFIG_LOG_DEFAULT_LEVEL
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(app);
 
-#define STACK_SIZE 1024
+#define STACK_SIZE 8192
 #define PRIORITY 7
 
-K_THREAD_STACK_DEFINE(stack_area1, 4096);
+K_THREAD_STACK_DEFINE(stack_area1, STACK_SIZE);
 K_THREAD_STACK_DEFINE(stack_area2, STACK_SIZE);
-
-
-// Settings
-static const uint8_t buf_len = 255;     // Size of buffer to look for command
-static const char command[] = "data "; // Note the space!
 
 struct DATAMQ {  
   int data;
 };
 
-K_MSGQ_DEFINE(data_msgq, sizeof(struct DATAMQ), 20, 4);
+K_MSGQ_DEFINE(data_msgq, sizeof(struct DATAMQ), 80, 16);
 
 static const struct device *uart_dev = DEVICE_DT_GET(DT_NODELABEL(uart1));
 
-static uint32_t count;
-
 lv_obj_t *count_label;
-lv_obj_t *hello_world_label;
+lv_obj_t * meter;
+lv_meter_scale_t * scale;
+lv_meter_indicator_t * indic;
+lv_obj_t * my_Cir;
 
-#ifdef CONFIG_GPIO
-static struct gpio_dt_spec button_gpio = GPIO_DT_SPEC_GET_OR(
-		DT_ALIAS(sw0), gpios, {0});
-static struct gpio_callback button_callback;
-
-static void button_isr_callback(const struct device *port,
-				struct gpio_callback *cb,
-				uint32_t pins)
+void peripheral_callback(const struct device *dev, char *data, size_t length, bool is_string, void *user_data)
 {
-	ARG_UNUSED(port);
-	ARG_UNUSED(cb);
-	ARG_UNUSED(pins);
+    struct DATAMQ data_msg;
 
-	count = 0;
-}
-#endif
+    data_msg.data = atoi(data);
 
+    printk("%d\r\n", data_msg.data);
 
-// Task: flash LED based on delay provided, notify other task every 100 blinks
-void readData() {
-
-  struct DATAMQ data_msg;
-
-  // Loop forever
-  while (1) {
-    k_msgq_get(&data_msgq, &data_msg, K_NO_WAIT);
-    k_sleep(K_MSEC(10));
-  }
+    while (k_msgq_put(&data_msgq, &data_msg, K_NO_WAIT) != 0) {
+              /* message queue is full: purge old data & try again */
+              k_msgq_purge(&data_msgq);
+          }
 }
 
 // Task: command line interface (CLI)
 void doCLI() 
 {
-  char c;
-  char buf[buf_len];
-  uint8_t idx = 0;
-  uint8_t cmd_len = strlen(command);
-  struct DATAMQ data_msg;
-
-  // Clear whole buffer
-  memset(buf, 0, buf_len);
-
-  // Loop forever
-  while (1) {
-
-    // Read cahracters from serial
-    
-    while (uart_poll_in(uart_dev, &c) < 0) {
-        /* Allow other thread/workqueue to work. */
-        k_yield();
-    }
-
-    // Store received character to buffer if not over buffer limit
-    if (idx < buf_len - 1) {
-      buf[idx] = c;
-      idx++;
-    }
-
-    // Print newline and check input on 'enter'
-    if ((c == '\n') || (c == '\r')) {
-
-      // Print newline to terminal
-      printk("\r\n");
-      printk("%s", buf);
-
-      // Check if the first 6 characters are "delay "
-      if (memcmp(buf, command, cmd_len) == 0) {
-        printk("update data\r\n");
-        // Convert last part to positive integer (negative int crashes)
-        char* tail = buf + cmd_len;
-        data_msg.data = atoi(tail);
-        data_msg.data = abs(data_msg.data);
-        printk("New data: %d\r\n", data_msg.data);
-        // Send integer to other task via queue
-        // k_queue_append(&delay_queue, &led_delay);
-        /* send data to consumers */
-        while (k_msgq_put(&data_msgq, &data_msg, K_NO_WAIT) != 0) {
-            /* message queue is full: purge old data & try again */
-            k_msgq_purge(&data_msgq);
-        }
-      }
-
-      // Reset receive buffer and index counter
-      memset(buf, 0, buf_len);
-      idx = 0;
-
-    // Otherwise, echo character back to serial terminal
-    } else {
-      printk("%c\r\n",c);
-    }
-  }  
+  const struct device *dev = device_get_binding(DT_LABEL(DT_NODELABEL(my_device)));
+  my_uart_set_callback(dev, peripheral_callback, NULL);
 }
 
 void update_GUI(void)
 {
 	char count_str[11] = {0};
 	struct DATAMQ data_msg;
+  lv_area_t a;
 
 	while (1) {
-		printk("Update GUI\r\n");
+		// printk("Update GUI\r\n");
 		k_msgq_get(&data_msgq, &data_msg, K_NO_WAIT);
+		
 
 		sprintf(count_str, "%d", data_msg.data);
 		lv_label_set_text(count_label, count_str);
+    lv_obj_set_size(my_Cir , data_msg.data, data_msg.data);
+    lv_meter_set_indicator_value(meter, indic, data_msg.data);
 		
 		lv_task_handler();
-		k_sleep(K_MSEC(30));
+		k_yield();
 	}
 }
 
@@ -171,44 +100,48 @@ void main(void)
 		return;
 	}
 
-#ifdef CONFIG_GPIO
-	if (device_is_ready(button_gpio.port)) {
-		err = gpio_pin_configure_dt(&button_gpio, GPIO_INPUT);
-		if (err) {
-			LOG_ERR("failed to configure button gpio: %d", err);
-			return;
-		}
+	lv_disp_t * dispp = lv_disp_get_default();
+  lv_theme_t * theme = lv_theme_default_init(dispp, lv_palette_main(LV_PALETTE_BLUE), lv_palette_main(LV_PALETTE_RED),
+                                              true, LV_FONT_DEFAULT);
+  lv_disp_set_theme(dispp, theme);
+	
+  my_Cir = lv_obj_create(lv_scr_act());
+  lv_obj_set_size(my_Cir , 0, 0);
+  lv_obj_align(my_Cir, LV_ALIGN_CENTER, 75, 0);
+  lv_obj_set_style_bg_color(my_Cir , lv_palette_main(LV_PALETTE_BLUE), 0);
+  lv_obj_set_style_radius(my_Cir , LV_RADIUS_CIRCLE, 0);
 
-		gpio_init_callback(&button_callback, button_isr_callback,
-				   BIT(button_gpio.pin));
+	meter = lv_meter_create(lv_scr_act());
+  lv_obj_align(meter, LV_ALIGN_CENTER, -75, 0);
+  lv_obj_set_size(meter, 150, 150);
 
-		err = gpio_add_callback(button_gpio.port, &button_callback);
-		if (err) {
-			LOG_ERR("failed to add button callback: %d", err);
-			return;
-		}
+  /*Add a scale first*/
+  scale = lv_meter_add_scale(meter);
+  lv_meter_set_scale_ticks(meter, scale, 41, 2, 10, lv_palette_main(LV_PALETTE_GREY));
+  lv_meter_set_scale_major_ticks(meter, scale, 8, 4, 15, lv_color_black(), 10);
 
-		err = gpio_pin_interrupt_configure_dt(&button_gpio,
-						      GPIO_INT_EDGE_TO_ACTIVE);
-		if (err) {
-			LOG_ERR("failed to enable button callback: %d", err);
-			return;
-		}
-	}
-#endif
+  /*Add a blue arc to the start*/
+  indic = lv_meter_add_arc(meter, scale, 3, lv_palette_main(LV_PALETTE_BLUE), 0);
+  lv_meter_set_indicator_start_value(meter, indic, 0);
+  lv_meter_set_indicator_end_value(meter, indic, 20);
 
-	if (IS_ENABLED(CONFIG_LV_Z_POINTER_KSCAN)) {
-		lv_obj_t *hello_world_button;
+  /*Make the tick lines blue at the start of the scale*/
+  indic = lv_meter_add_scale_lines(meter, scale, lv_palette_main(LV_PALETTE_BLUE), lv_palette_main(LV_PALETTE_BLUE), false, 0);
+  lv_meter_set_indicator_start_value(meter, indic, 0);
+  lv_meter_set_indicator_end_value(meter, indic, 20);
 
-		hello_world_button = lv_btn_create(lv_scr_act());
-		lv_obj_align(hello_world_button, LV_ALIGN_CENTER, 0, 0);
-		hello_world_label = lv_label_create(hello_world_button);
-	} else {
-		hello_world_label = lv_label_create(lv_scr_act());
-	}
+  /*Add a red arc to the end*/
+  indic = lv_meter_add_arc(meter, scale, 3, lv_palette_main(LV_PALETTE_RED), 0);
+  lv_meter_set_indicator_start_value(meter, indic, 80);
+  lv_meter_set_indicator_end_value(meter, indic, 100);
 
-	lv_label_set_text(hello_world_label, "Hello world!");
-	lv_obj_align(hello_world_label, LV_ALIGN_CENTER, 0, 0);
+  /*Make the tick lines red at the end of the scale*/
+  indic = lv_meter_add_scale_lines(meter, scale, lv_palette_main(LV_PALETTE_RED), lv_palette_main(LV_PALETTE_RED), false, 0);
+  lv_meter_set_indicator_start_value(meter, indic, 80);
+  lv_meter_set_indicator_end_value(meter, indic, 100);
+
+  /*Add a needle line indicator*/
+  indic = lv_meter_add_needle_line(meter, scale, 4, lv_palette_main(LV_PALETTE_GREY), -10);
 
 	count_label = lv_label_create(lv_scr_act());
 	lv_obj_align(count_label, LV_ALIGN_BOTTOM_MID, 0, 0);
@@ -228,21 +161,6 @@ void main(void)
                                  K_THREAD_STACK_SIZEOF(stack_area2),
                                  doCLI,
                                  NULL, NULL, NULL,
-                                 PRIORITY, 0, K_NO_WAIT);
+                                 4, 0, K_NO_WAIT);
 
-	// k_thread_create(&thread3, stack_area3,
-    //                              K_THREAD_STACK_SIZEOF(stack_area3),
-    //                              update_GUI,
-    //                              NULL, NULL, NULL,
-    //                              PRIORITY, 0, K_NO_WAIT);
-
-	// while (1) {
-	// 	if ((count % 100) == 0U) {
-	// 		sprintf(count_str, "%d", count/100U);
-	// 		lv_label_set_text(count_label, count_str);
-	// 	}
-	// 	lv_task_handler();
-	// 	++count;
-	// 	k_sleep(K_MSEC(10));
-	// }
 }
