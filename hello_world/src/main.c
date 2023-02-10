@@ -7,7 +7,7 @@
 #include <zephyr/zephyr.h>
 // #include <stdio.h>
 
-static float counter = 0.0;
+static int counter = 0;
 
 static void repeating_timer_callback(struct k_work *dummy){
 	char str[100];
@@ -16,10 +16,10 @@ static void repeating_timer_callback(struct k_work *dummy){
 	if(counter > 100){
 		counter = 0;
 	}
-	sprintf(str,"%.2f", counter);
+	sprintf(str,"data %d\r\n", counter);
 	// printk("Timer counter %.2f\n", counter);
 	printf(str);
-	printf("%c", null);
+	// printf("%c", null);
 }
 
 K_WORK_DEFINE(repeating_timer_work, repeating_timer_callback);
