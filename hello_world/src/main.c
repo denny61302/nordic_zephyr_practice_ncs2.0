@@ -8,18 +8,20 @@
 // #include <stdio.h>
 
 static int counter = 0;
+static bool size_dec = false;
 
 static void repeating_timer_callback(struct k_work *dummy){
 	char str[100];
 	char null = '\0';
-	counter++;
-	if(counter > 100){
-		counter = 0;
-	}
-	sprintf(str,"data %d\r\n", counter);
+	if(size_dec) counter--;
+    else counter++;
+
+    if(counter == 100) size_dec = true;
+    else if(counter == 0) size_dec = false;
+	sprintf(str,"%d", counter);
 	// printk("Timer counter %.2f\n", counter);
 	printf(str);
-	// printf("%c", null);
+	printf("%c", null);
 }
 
 K_WORK_DEFINE(repeating_timer_work, repeating_timer_callback);
