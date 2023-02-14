@@ -18,7 +18,7 @@
 
 #define LOG_LEVEL CONFIG_LOG_DEFAULT_LEVEL
 #include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(app);
+LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 
 #define STACK_SIZE 8192
 #define PRIORITY 7
@@ -46,12 +46,13 @@ void peripheral_callback(const struct device *dev, char *data, size_t length, bo
 
     data_msg.data = atoi(data);
 
-    printk("%d\r\n", data_msg.data);
+    printk("Time %d, %d\r\n", k_uptime_get_32(), data_msg.data);
 
     while (k_msgq_put(&data_msgq, &data_msg, K_NO_WAIT) != 0) {
               /* message queue is full: purge old data & try again */
               k_msgq_purge(&data_msgq);
           }
+          // lv_tick_inc(10);
 }
 
 // Task: command line interface (CLI)
@@ -75,7 +76,7 @@ void update_GUI(void)
 		sprintf(count_str, "%d", data_msg.data);
 		lv_label_set_text(count_label, count_str);
     lv_obj_set_size(my_Cir , data_msg.data, data_msg.data);
-    lv_meter_set_indicator_value(meter, indic, data_msg.data);
+    // lv_meter_set_indicator_value(meter, indic, data_msg.data);
 		
 		lv_task_handler();
 		k_yield();
@@ -89,7 +90,7 @@ void main(void)
 	const struct device *display_dev;
 
 	if (!device_is_ready(uart_dev)) {
-		printk("UART device not ready\n");
+		LOG_ERR("UART device not ready\n");
 		return;
 	}
 
