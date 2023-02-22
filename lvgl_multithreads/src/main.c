@@ -75,7 +75,7 @@ void update_GUI(void)
 
 		sprintf(count_str, "%d", data_msg.data);
 		lv_label_set_text(count_label, count_str);
-    lv_obj_set_size(my_Cir , data_msg.data, data_msg.data);
+    lv_obj_set_size(my_Cir , 50, data_msg.data - 1900);
     // lv_meter_set_indicator_value(meter, indic, data_msg.data);
 		
 		lv_task_handler();
